@@ -2,519 +2,219 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>주간 루틴 관리</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Routine Control</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; padding: 0; }
+        body { font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body>
+<body class="bg-gray-50">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
-        
-        // Lucide 아이콘 SVG 컴포넌트
-        const Check = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-        );
-        
-        const ChevronLeft = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-        );
-        
-        const ChevronRight = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-        );
-        
-        const RotateCcw = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="1 4 1 10 7 10"></polyline>
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-            </svg>
-        );
-        
-        const Download = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-        );
-        
-        const Upload = ({ size = 24 }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-        );
+        const { useState, useEffect, useMemo } = React;
+
+        // Icons
+        const Icon = {
+            Check: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>,
+            Download: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12 a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
+            Settings: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        };
 
         function RoutineTracker() {
-            const getCurrentWeek = () => {
-                const now = new Date();
-                const start = new Date(now.getFullYear(), 0, 1);
-                const diff = now - start;
-                const oneWeek = 1000 * 60 * 60 * 24 * 7;
-                return Math.ceil(diff / oneWeek);
-            };
+            const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+            const [currentWeek, setCurrentWeek] = useState(1); // 단순화된 주차 표시
+            const [routines, setRoutines] = useState(null);
 
-            const [currentWeek, setCurrentWeek] = useState(getCurrentWeek());
-            const [routines, setRoutines] = useState({
-                sleep: Array(7).fill(false),
-                reading: Array(7).fill(false),
-                exercise: Array(3).fill(false),
-                stairs: Array(2).fill(false),
-                coffee: { success: false, fail: false },
-                english: Array(3).fill(false),
-                aiSummary: false,
-                aiQuestion: false,
-                childTalk: false,
-                energyMoment: '',
-                keepNext: '',
-                weight: ''
-            });
+            const storageKey = `routine-2026-${currentMonth}-${currentWeek}`;
 
             useEffect(() => {
-                const saved = localStorage.getItem(`routine:${currentWeek}`);
-                if (saved) {
-                    setRoutines(JSON.parse(saved));
-                } else {
-                    setRoutines({
-                        sleep: Array(7).fill(false),
-                        reading: Array(7).fill(false),
-                        exercise: Array(3).fill(false),
-                        stairs: Array(2).fill(false),
-                        coffee: { success: false, fail: false },
-                        english: Array(3).fill(false),
-                        aiSummary: false,
-                        aiQuestion: false,
-                        childTalk: false,
-                        energyMoment: '',
-                        keepNext: '',
-                        weight: ''
-                    });
-                }
-            }, [currentWeek]);
+                const saved = localStorage.getItem(storageKey);
+                setRoutines(saved ? JSON.parse(saved) : {
+                    sleep: Array(7).fill(false),
+                    reading: Array(7).fill(false),
+                    exercise: Array(3).fill(false),
+                    stairs: Array(2).fill(false),
+                    coffee: { success: false, fail: false },
+                    english: Array(3).fill(false),
+                    aiSummary: false,
+                    aiQuestion: false,
+                    childTalk: false,
+                    energyMoment: '',
+                    keepNext: '',
+                    weight: ''
+                });
+            }, [currentMonth, currentWeek]);
 
-            const saveData = (newRoutines) => {
-                localStorage.setItem(`routine:${currentWeek}`, JSON.stringify(newRoutines));
+            const updateRoutines = (newData) => {
+                setRoutines(newData);
+                localStorage.setItem(storageKey, JSON.stringify(newData));
             };
 
             const toggleCheck = (category, index = null) => {
-                const newRoutines = { ...routines };
-                
-                if (Array.isArray(newRoutines[category])) {
-                    newRoutines[category][index] = !newRoutines[category][index];
+                const newData = { ...routines };
+                if (Array.isArray(newData[category])) {
+                    newData[category][index] = !newData[category][index];
                 } else if (category === 'coffee') {
-                    if (index === 'success') {
-                        newRoutines.coffee.success = !newRoutines.coffee.success;
-                        if (newRoutines.coffee.success) newRoutines.coffee.fail = false;
-                    } else {
-                        newRoutines.coffee.fail = !newRoutines.coffee.fail;
-                        if (newRoutines.coffee.fail) newRoutines.coffee.success = false;
-                    }
+                    newData.coffee[index] = !newData.coffee[index];
+                    if (index === 'success' && newData.coffee.success) newData.coffee.fail = false;
+                    if (index === 'fail' && newData.coffee.fail) newData.coffee.success = false;
                 } else {
-                    newRoutines[category] = !newRoutines[category];
+                    newData[category] = !newData[category];
                 }
-                
-                setRoutines(newRoutines);
-                saveData(newRoutines);
+                updateRoutines(newData);
             };
 
-            const updateText = (field, value) => {
-                const newRoutines = { ...routines, [field]: value };
-                setRoutines(newRoutines);
-                saveData(newRoutines);
-            };
-
-            const resetWeek = () => {
-                if (confirm('이번 주 데이터를 초기화하시겠습니까?')) {
-                    const newRoutines = {
-                        sleep: Array(7).fill(false),
-                        reading: Array(7).fill(false),
-                        exercise: Array(3).fill(false),
-                        stairs: Array(2).fill(false),
-                        coffee: { success: false, fail: false },
-                        english: Array(3).fill(false),
-                        aiSummary: false,
-                        aiQuestion: false,
-                        childTalk: false,
-                        energyMoment: '',
-                        keepNext: '',
-                        weight: ''
-                    };
-                    setRoutines(newRoutines);
-                    saveData(newRoutines);
-                }
-            };
-
-            const downloadAllData = () => {
-                const allData = {};
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key.startsWith('routine:')) {
-                        allData[key] = JSON.parse(localStorage.getItem(key));
-                    }
-                }
-                
-                const dataStr = JSON.stringify(allData, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `routine-backup-${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                alert('모든 데이터가 다운로드되었습니다!');
-            };
-
-            const downloadCurrentWeek = () => {
-                const dataStr = JSON.stringify({ [`routine:${currentWeek}`]: routines }, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `routine-week-${currentWeek}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            };
-
-            const downloadAsCSV = () => {
-                let csv = 'Week,Sleep,Reading,Exercise,Stairs,Coffee,English,AI Summary,AI Question,Child Talk,Energy Moment,Keep Next,Weight\n';
-                
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key.startsWith('routine:')) {
-                        const data = JSON.parse(localStorage.getItem(key));
-                        const week = key.split(':')[1];
-                        const sleepCount = data.sleep.filter(Boolean).length;
-                        const readingCount = data.reading.filter(Boolean).length;
-                        const exerciseCount = data.exercise.filter(Boolean).length;
-                        const stairsCount = data.stairs.filter(Boolean).length;
-                        const coffee = data.coffee.success ? 'Success' : data.coffee.fail ? 'Fail' : 'None';
-                        const englishCount = data.english.filter(Boolean).length;
-                        
-                        csv += `${week},${sleepCount}/7,${readingCount}/7,${exerciseCount}/3,${stairsCount}/2,${coffee},${englishCount}/3,${data.aiSummary ? 'Y' : 'N'},${data.aiQuestion ? 'Y' : 'N'},${data.childTalk ? 'Y' : 'N'},"${data.energyMoment}","${data.keepNext}","${data.weight}"\n`;
-                    }
-                }
-                
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `routine-data-${new Date().toISOString().split('T')[0]}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                alert('CSV 파일이 다운로드되었습니다!');
-            };
-
-            const restoreData = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        
-                        for (const [key, value] of Object.entries(data)) {
-                            localStorage.setItem(key, JSON.stringify(value));
-                        }
-                        
-                        const saved = localStorage.getItem(`routine:${currentWeek}`);
-                        if (saved) {
-                            setRoutines(JSON.parse(saved));
-                        }
-                        
-                        alert('데이터가 복원되었습니다!');
-                    } catch (error) {
-                        console.error('복원 실패:', error);
-                        alert('파일 형식이 올바르지 않습니다.');
-                    }
-                };
-                reader.readAsText(file);
-            };
-
-            const days = ['월', '화', '수', '목', '금', '토', '일'];
-
-            const CheckBox = ({ checked, onClick }) => (
-                <button
-                    onClick={onClick}
-                    className={`w-8 h-8 border-2 rounded flex items-center justify-center transition-all ${
-                        checked 
-                            ? 'bg-blue-500 border-blue-500 text-white' 
-                            : 'border-gray-300 hover:border-blue-400'
-                    }`}
-                >
-                    {checked && <Check size={18} />}
-                </button>
-            );
+            if (!routines) return null;
 
             return (
-                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
-                    <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                        <div className="flex items-center justify-between mb-8">
-                            <button
-                                onClick={() => setCurrentWeek(currentWeek - 1)}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                            >
-                                <ChevronLeft size={24} />
+                <div className="max-w-md mx-auto min-h-screen flex flex-col pb-20">
+                    {/* GNB - 월별 섹션 */}
+                    <nav className="sticky top-0 bg-white/80 backdrop-blur-md z-10 border-b">
+                        <div className="flex overflow-x-auto no-scrollbar px-4 py-3 gap-6 text-sm font-medium text-gray-400">
+                            {[...Array(12)].map((_, i) => (
+                                <button 
+                                    key={i} 
+                                    onClick={() => setCurrentMonth(i + 1)}
+                                    className={`${currentMonth === i + 1 ? "text-blue-600 border-b-2 border-blue-600" : ""} pb-1 whitespace-nowrap`}
+                                >
+                                    {i + 1}월
+                                </button>
+                            ))}
+                        </div>
+                        {/* Week 섹션 */}
+                        <div className="flex justify-around py-2 bg-gray-50 text-xs text-gray-500 border-b">
+                            {[1, 2, 3, 4, 5].map(w => (
+                                <button 
+                                    key={w}
+                                    onClick={() => setCurrentWeek(w)}
+                                    className={`px-3 py-1 rounded-full ${currentWeek === w ? "bg-white text-blue-600 shadow-sm font-bold" : ""}`}
+                                >
+                                    {w}주차
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+
+                    <main className="p-4 space-y-4 flex-1">
+                        {/* 데일리 루틴 카드 */}
+                        <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                            <h2 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                📅 주간 반복 루틴 <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-normal">Daily</span>
+                            </h2>
+                            <div className="space-y-6">
+                                <RoutineRow label="🛌 수면 (12시 전)" data={routines.sleep} onToggle={(i) => toggleCheck('sleep', i)} />
+                                <RoutineRow label="📚 10분 독서" data={routines.reading} onToggle={(i) => toggleCheck('reading', i)} />
+                            </div>
+                        </section>
+
+                        {/* 목표 달성 카드 */}
+                        <section className="grid grid-cols-2 gap-4">
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <h3 className="text-xs font-bold text-gray-500 mb-3">🏃 운동 (주3)</h3>
+                                <div className="flex gap-2">
+                                    {routines.exercise.map((v, i) => <SquareCheck key={i} checked={v} onClick={() => toggleCheck('exercise', i)} />)}
+                                </div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <h3 className="text-xs font-bold text-gray-500 mb-3">🗣️ 영어 (주3)</h3>
+                                <div className="flex gap-2">
+                                    {routines.english.map((v, i) => <SquareCheck key={i} checked={v} onClick={() => toggleCheck('english', i)} />)}
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* AI 및 기타 기록 */}
+                        <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-semibold text-gray-700">🤖 AI 활용 (요약/질문)</span>
+                                <div className="flex gap-2">
+                                    <SquareCheck checked={routines.aiSummary} onClick={() => toggleCheck('aiSummary')} />
+                                    <SquareCheck checked={routines.aiQuestion} onClick={() => toggleCheck('aiQuestion')} />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between border-t pt-4">
+                                <span className="text-sm font-semibold text-gray-700">👦 아이 집중 대화</span>
+                                <SquareCheck checked={routines.childTalk} onClick={() => toggleCheck('childTalk')} />
+                            </div>
+                        </section>
+
+                        {/* 나 탐구 (텍스트) */}
+                        <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+                            <h2 className="text-sm font-bold text-gray-800">🧠 나 탐구 리포트</h2>
+                            <textarea 
+                                value={routines.energyMoment}
+                                onChange={(e) => updateRoutines({...routines, energyMoment: e.target.value})}
+                                placeholder="이번 주 에너지 상승 순간..."
+                                className="w-full bg-gray-50 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                rows="2"
+                            />
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">📉 체중</span>
+                                <input 
+                                    type="text" 
+                                    value={routines.weight}
+                                    onChange={(e) => updateRoutines({...routines, weight: e.target.value})}
+                                    placeholder="00.0kg"
+                                    className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                                />
+                            </div>
+                        </section>
+                    </main>
+
+                    {/* 하단 데이터 관리 섹션 */}
+                    <footer className="p-6 bg-gray-100 space-y-4 border-t">
+                        <div className="flex justify-between items-center text-gray-500 text-xs mb-2">
+                            <span>관리 및 백업</span>
+                            <span>v2.0 Mobile Optimized</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => alert('전체 데이터를 다운로드합니다.')} className="flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 rounded-xl text-sm font-medium shadow-sm active:scale-95 transition-transform">
+                                <Icon.Download /> 데이터 백업
                             </button>
-                            
-                            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-                                2026 Week {currentWeek}
-                            </h1>
-                            
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={resetWeek}
-                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                    title="초기화"
-                                >
-                                    <RotateCcw size={20} />
-                                </button>
-                                <button
-                                    onClick={() => setCurrentWeek(currentWeek + 1)}
-                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                >
-                                    <ChevronRight size={24} />
-                                </button>
-                            </div>
+                            <label className="flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 rounded-xl text-sm font-medium shadow-sm active:scale-95 transition-transform cursor-pointer">
+                                <Icon.Settings /> 복원하기
+                                <input type="file" className="hidden" />
+                            </label>
                         </div>
+                    </footer>
+                </div>
+            );
+        }
 
-                        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                            <h3 className="text-sm font-semibold text-gray-700 mb-3">💾 데이터 관리</h3>
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    onClick={downloadCurrentWeek}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-                                >
-                                    <Download size={16} />
-                                    현재 주차 저장
-                                </button>
-                                <button
-                                    onClick={downloadAllData}
-                                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-                                >
-                                    <Download size={16} />
-                                    전체 데이터 저장
-                                </button>
-                                <button
-                                    onClick={downloadAsCSV}
-                                    className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm"
-                                >
-                                    <Download size={16} />
-                                    CSV 다운로드
-                                </button>
-                                <label className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors cursor-pointer text-sm">
-                                    <Upload size={16} />
-                                    데이터 복원
-                                    <input
-                                        type="file"
-                                        accept=".json"
-                                        onChange={restoreData}
-                                        className="hidden"
-                                    />
-                                </label>
+        // Sub-components
+        function RoutineRow({ label, data, onToggle }) {
+            const days = ['월', '화', '수', '목', '금', '토', '일'];
+            return (
+                <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-400">{label}</p>
+                    <div className="flex justify-between">
+                        {data.map((checked, i) => (
+                            <div key={i} className="flex flex-col items-center gap-2">
+                                <span className="text-[10px] text-gray-400">{days[i]}</span>
+                                <SquareCheck checked={checked} onClick={() => onToggle(i)} size="large" />
                             </div>
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                    🛌 수면 (12시 이전)
-                                </h2>
-                                <div className="flex gap-2 flex-wrap">
-                                    {days.map((day, i) => (
-                                        <div key={i} className="flex flex-col items-center gap-1">
-                                            <span className="text-sm text-gray-600">{day}</span>
-                                            <CheckBox 
-                                                checked={routines.sleep[i]} 
-                                                onClick={() => toggleCheck('sleep', i)} 
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                    📚 10분 독서
-                                </h2>
-                                <div className="flex gap-2 flex-wrap">
-                                    {days.map((day, i) => (
-                                        <div key={i} className="flex flex-col items-center gap-1">
-                                            <span className="text-sm text-gray-600">{day}</span>
-                                            <CheckBox 
-                                                checked={routines.reading[i]} 
-                                                onClick={() => toggleCheck('reading', i)} 
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3">🏃 운동 (주 3회)</h2>
-                                <div className="flex gap-2">
-                                    {[1, 2, 3].map((num, i) => (
-                                        <CheckBox 
-                                            key={i}
-                                            checked={routines.exercise[i]} 
-                                            onClick={() => toggleCheck('exercise', i)} 
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3">🏢 계단 (주 2회)</h2>
-                                <div className="flex gap-2">
-                                    {[1, 2].map((num, i) => (
-                                        <CheckBox 
-                                            key={i}
-                                            checked={routines.stairs[i]} 
-                                            onClick={() => toggleCheck('stairs', i)} 
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3">☕ 커피 실험</h2>
-                                <div className="flex gap-4">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <CheckBox 
-                                            checked={routines.coffee.success} 
-                                            onClick={() => toggleCheck('coffee', 'success')} 
-                                        />
-                                        <span>성공</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <CheckBox 
-                                            checked={routines.coffee.fail} 
-                                            onClick={() => toggleCheck('coffee', 'fail')} 
-                                        />
-                                        <span>실패</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3">🗣️ 영어 스피킹 (주 3회)</h2>
-                                <div className="flex gap-2">
-                                    {[1, 2, 3].map((num, i) => (
-                                        <CheckBox 
-                                            key={i}
-                                            checked={routines.english[i]} 
-                                            onClick={() => toggleCheck('english', i)} 
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3">🤖 AI 활용</h2>
-                                <div className="space-y-2">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <CheckBox 
-                                            checked={routines.aiSummary} 
-                                            onClick={() => toggleCheck('aiSummary')} 
-                                        />
-                                        <span>오늘 요약</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <CheckBox 
-                                            checked={routines.aiQuestion} 
-                                            onClick={() => toggleCheck('aiQuestion')} 
-                                        />
-                                        <span>생각 질문 1개</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3">👦 아이 집중 대화</h2>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <CheckBox 
-                                        checked={routines.childTalk} 
-                                        onClick={() => toggleCheck('childTalk')} 
-                                    />
-                                    <span>완료</span>
-                                </label>
-                            </div>
-
-                            <div className="border-b pb-4">
-                                <h2 className="text-lg font-semibold mb-3">🧠 나 탐구</h2>
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">
-                                            이번 주 에너지 상승 순간:
-                                        </label>
-                                        <textarea
-                                            value={routines.energyMoment}
-                                            onChange={(e) => updateText('energyMoment', e.target.value)}
-                                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                                            rows="2"
-                                            placeholder="에너지가 올라갔던 순간을 기록하세요..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm text-gray-600 mb-1">
-                                            다음 주 유지할 것 1가지:
-                                        </label>
-                                        <textarea
-                                            value={routines.keepNext}
-                                            onChange={(e) => updateText('keepNext', e.target.value)}
-                                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                                            rows="2"
-                                            placeholder="다음 주에도 계속할 것을 적어보세요..."
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h2 className="text-lg font-semibold mb-3">📉 체중 기록</h2>
-                                <div>
-                                    <label className="block text-sm text-gray-600 mb-1">
-                                        이번 주:
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={routines.weight}
-                                        onChange={(e) => updateText('weight', e.target.value)}
-                                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                                        placeholder="예: 70kg"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-8 text-center text-sm text-gray-500">
-                            데이터는 자동으로 저장됩니다
-                        </div>
+                        ))}
                     </div>
                 </div>
+            );
+        }
+
+        function SquareCheck({ checked, onClick, size = "normal" }) {
+            const sizeClass = size === "large" ? "w-10 h-10" : "w-8 h-8";
+            return (
+                <button 
+                    onClick={onClick}
+                    className={`${sizeClass} rounded-xl flex items-center justify-center transition-all ${checked ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : "bg-gray-100 text-transparent"}`}
+                >
+                    <Icon.Check />
+                </button>
             );
         }
 
