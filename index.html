@@ -127,27 +127,31 @@
                                 <div className="flex gap-2">
                                     {routines.english.map((v, i) => <SquareCheck key={i} checked={v} onClick={() => toggleCheck('english', i)} />)}
                                 </div>
+                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <h3 className="text-xs font-bold text-gray-500 mb-3">🗣️ 계단 (주3)</h3>
+                                <div className="flex gap-2">
+                                    {routines.english.map((v, i) => <SquareCheck key={i} checked={v} onClick={() => toggleCheck('english', i)} />)}
                             </div>
                         </section>
 
                         {/* AI 및 기타 기록 */}
                         <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
                             <div className="flex items-center justify-between">
-                                <span className="text-sm font-semibold text-gray-700">🤖 AI 활용 (요약/질문)</span>
+                                <span className="text-sm font-semibold text-gray-700">🤖 AI 스터디 (요약/질문)</span>
                                 <div className="flex gap-2">
                                     <SquareCheck checked={routines.aiSummary} onClick={() => toggleCheck('aiSummary')} />
                                     <SquareCheck checked={routines.aiQuestion} onClick={() => toggleCheck('aiQuestion')} />
                                 </div>
                             </div>
                             <div className="flex items-center justify-between border-t pt-4">
-                                <span className="text-sm font-semibold text-gray-700">👦 아이 집중 대화</span>
+                                <span className="text-sm font-semibold text-gray-700">👦 아이와 진솔한 대화</span>
                                 <SquareCheck checked={routines.childTalk} onClick={() => toggleCheck('childTalk')} />
                             </div>
                         </section>
 
                         {/* 나 탐구 (텍스트) */}
                         <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
-                            <h2 className="text-sm font-bold text-gray-800">🧠 나 탐구 리포트</h2>
+                            <h2 className="text-sm font-bold text-gray-800">🧠 나의 성장 리포트</h2>
                             <textarea 
                                 value={routines.energyMoment}
                                 onChange={(e) => updateRoutines({...routines, energyMoment: e.target.value})}
@@ -222,3 +226,4 @@
     </script>
 </body>
 </html>
+
