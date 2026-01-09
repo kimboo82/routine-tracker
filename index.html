@@ -1,0 +1,506 @@
+import React, { useState, useEffect } from 'react';
+import { Check, ChevronLeft, ChevronRight, RotateCcw, Download, Upload } from 'lucide-react';
+
+export default function RoutineTracker() {
+  const getCurrentWeek = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const diff = now - start;
+    const oneWeek = 1000 * 60 * 60 * 24 * 7;
+    return Math.ceil(diff / oneWeek);
+  };
+
+  const [currentWeek, setCurrentWeek] = useState(getCurrentWeek());
+  const [routines, setRoutines] = useState({
+    sleep: Array(7).fill(false),
+    reading: Array(7).fill(false),
+    exercise: Array(3).fill(false),
+    stairs: Array(2).fill(false),
+    coffee: { success: false, fail: false },
+    english: Array(3).fill(false),
+    aiSummary: false,
+    aiQuestion: false,
+    childTalk: false,
+    energyMoment: '',
+    keepNext: '',
+    weight: ''
+  });
+
+  // 데이터 로드
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const result = await window.storage.get(`routine:${currentWeek}`);
+        if (result && result.value) {
+          setRoutines(JSON.parse(result.value));
+        } else {
+          // 새로운 주차면 초기화
+          setRoutines({
+            sleep: Array(7).fill(false),
+            reading: Array(7).fill(false),
+            exercise: Array(3).fill(false),
+            stairs: Array(2).fill(false),
+            coffee: { success: false, fail: false },
+            english: Array(3).fill(false),
+            aiSummary: false,
+            aiQuestion: false,
+            childTalk: false,
+            energyMoment: '',
+            keepNext: '',
+            weight: ''
+          });
+        }
+      } catch (error) {
+        console.log('데이터 로드 실패 (새로운 주차)');
+      }
+    };
+    loadData();
+  }, [currentWeek]);
+
+  // 데이터 저장
+  const saveData = async (newRoutines) => {
+    try {
+      await window.storage.set(`routine:${currentWeek}`, JSON.stringify(newRoutines));
+    } catch (error) {
+      console.error('저장 실패:', error);
+    }
+  };
+
+  const toggleCheck = (category, index = null) => {
+    const newRoutines = { ...routines };
+    
+    if (Array.isArray(newRoutines[category])) {
+      newRoutines[category][index] = !newRoutines[category][index];
+    } else if (category === 'coffee') {
+      if (index === 'success') {
+        newRoutines.coffee.success = !newRoutines.coffee.success;
+        if (newRoutines.coffee.success) newRoutines.coffee.fail = false;
+      } else {
+        newRoutines.coffee.fail = !newRoutines.coffee.fail;
+        if (newRoutines.coffee.fail) newRoutines.coffee.success = false;
+      }
+    } else {
+      newRoutines[category] = !newRoutines[category];
+    }
+    
+    setRoutines(newRoutines);
+    saveData(newRoutines);
+  };
+
+  const updateText = (field, value) => {
+    const newRoutines = { ...routines, [field]: value };
+    setRoutines(newRoutines);
+    saveData(newRoutines);
+  };
+
+  const resetWeek = () => {
+    if (confirm('이번 주 데이터를 초기화하시겠습니까?')) {
+      const newRoutines = {
+        sleep: Array(7).fill(false),
+        reading: Array(7).fill(false),
+        exercise: Array(3).fill(false),
+        stairs: Array(2).fill(false),
+        coffee: { success: false, fail: false },
+        english: Array(3).fill(false),
+        aiSummary: false,
+        aiQuestion: false,
+        childTalk: false,
+        energyMoment: '',
+        keepNext: '',
+        weight: ''
+      };
+      setRoutines(newRoutines);
+      saveData(newRoutines);
+    }
+  };
+
+  // 전체 데이터 다운로드 (JSON 파일)
+  const downloadAllData = async () => {
+    try {
+      const allData = {};
+      const keys = await window.storage.list('routine:');
+      
+      for (const key of keys.keys) {
+        const result = await window.storage.get(key);
+        if (result && result.value) {
+          allData[key] = JSON.parse(result.value);
+        }
+      }
+      
+      const dataStr = JSON.stringify(allData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `routine-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('모든 데이터가 다운로드되었습니다!');
+    } catch (error) {
+      console.error('다운로드 실패:', error);
+      alert('다운로드 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 현재 주차 데이터만 다운로드
+  const downloadCurrentWeek = () => {
+    const dataStr = JSON.stringify({ [`routine:${currentWeek}`]: routines }, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `routine-week-${currentWeek}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // CSV 형식으로 다운로드
+  const downloadAsCSV = async () => {
+    try {
+      const keys = await window.storage.list('routine:');
+      let csv = 'Week,Sleep,Reading,Exercise,Stairs,Coffee,English,AI Summary,AI Question,Child Talk,Energy Moment,Keep Next,Weight\n';
+      
+      for (const key of keys.keys) {
+        const result = await window.storage.get(key);
+        if (result && result.value) {
+          const data = JSON.parse(result.value);
+          const week = key.split(':')[1];
+          const sleepCount = data.sleep.filter(Boolean).length;
+          const readingCount = data.reading.filter(Boolean).length;
+          const exerciseCount = data.exercise.filter(Boolean).length;
+          const stairsCount = data.stairs.filter(Boolean).length;
+          const coffee = data.coffee.success ? 'Success' : data.coffee.fail ? 'Fail' : 'None';
+          const englishCount = data.english.filter(Boolean).length;
+          
+          csv += `${week},${sleepCount}/7,${readingCount}/7,${exerciseCount}/3,${stairsCount}/2,${coffee},${englishCount}/3,${data.aiSummary ? 'Y' : 'N'},${data.aiQuestion ? 'Y' : 'N'},${data.childTalk ? 'Y' : 'N'},"${data.energyMoment}","${data.keepNext}","${data.weight}"\n`;
+        }
+      }
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `routine-data-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('CSV 파일이 다운로드되었습니다!');
+    } catch (error) {
+      console.error('CSV 다운로드 실패:', error);
+      alert('CSV 다운로드 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 데이터 복원
+  const restoreData = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        for (const [key, value] of Object.entries(data)) {
+          await window.storage.set(key, JSON.stringify(value));
+        }
+        
+        // 현재 주차 데이터 다시 로드
+        const result = await window.storage.get(`routine:${currentWeek}`);
+        if (result && result.value) {
+          setRoutines(JSON.parse(result.value));
+        }
+        
+        alert('데이터가 복원되었습니다!');
+      } catch (error) {
+        console.error('복원 실패:', error);
+        alert('파일 형식이 올바르지 않습니다.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const days = ['월', '화', '수', '목', '금', '토', '일'];
+
+  const CheckBox = ({ checked, onClick }) => (
+    <button
+      onClick={onClick}
+      className={`w-8 h-8 border-2 rounded flex items-center justify-center transition-all ${
+        checked 
+          ? 'bg-blue-500 border-blue-500 text-white' 
+          : 'border-gray-300 hover:border-blue-400'
+      }`}
+    >
+      {checked && <Check size={18} />}
+    </button>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => setCurrentWeek(currentWeek - 1)}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+            2026 Week {currentWeek}
+          </h1>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={resetWeek}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              title="초기화"
+            >
+              <RotateCcw size={20} />
+            </button>
+            <button
+              onClick={() => setCurrentWeek(currentWeek + 1)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <ChevronRight size={24} />
+            </button>
+          </div>
+        </div>
+
+        {/* 데이터 저장/복원 버튼 */}
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">💾 데이터 관리</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={downloadCurrentWeek}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+            >
+              <Download size={16} />
+              현재 주차 저장
+            </button>
+            <button
+              onClick={downloadAllData}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+            >
+              <Download size={16} />
+              전체 데이터 저장
+            </button>
+            <button
+              onClick={downloadAsCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm"
+            >
+              <Download size={16} />
+              CSV 다운로드
+            </button>
+            <label className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors cursor-pointer text-sm">
+              <Upload size={16} />
+              데이터 복원
+              <input
+                type="file"
+                accept=".json"
+                onChange={restoreData}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* 루틴 항목들 */}
+        <div className="space-y-6">
+          {/* 수면 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              🛌 수면 (12시 이전)
+            </h2>
+            <div className="flex gap-2 flex-wrap">
+              {days.map((day, i) => (
+                <div key={i} className="flex flex-col items-center gap-1">
+                  <span className="text-sm text-gray-600">{day}</span>
+                  <CheckBox 
+                    checked={routines.sleep[i]} 
+                    onClick={() => toggleCheck('sleep', i)} 
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 독서 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              📚 10분 독서
+            </h2>
+            <div className="flex gap-2 flex-wrap">
+              {days.map((day, i) => (
+                <div key={i} className="flex flex-col items-center gap-1">
+                  <span className="text-sm text-gray-600">{day}</span>
+                  <CheckBox 
+                    checked={routines.reading[i]} 
+                    onClick={() => toggleCheck('reading', i)} 
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 운동 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3">🏃 운동 (주 3회)</h2>
+            <div className="flex gap-2">
+              {[1, 2, 3].map((num, i) => (
+                <CheckBox 
+                  key={i}
+                  checked={routines.exercise[i]} 
+                  onClick={() => toggleCheck('exercise', i)} 
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* 계단 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3">🏢 계단 (주 2회)</h2>
+            <div className="flex gap-2">
+              {[1, 2].map((num, i) => (
+                <CheckBox 
+                  key={i}
+                  checked={routines.stairs[i]} 
+                  onClick={() => toggleCheck('stairs', i)} 
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* 커피 실험 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3">☕ 커피 실험</h2>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <CheckBox 
+                  checked={routines.coffee.success} 
+                  onClick={() => toggleCheck('coffee', 'success')} 
+                />
+                <span>성공</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <CheckBox 
+                  checked={routines.coffee.fail} 
+                  onClick={() => toggleCheck('coffee', 'fail')} 
+                />
+                <span>실패</span>
+              </label>
+            </div>
+          </div>
+
+          {/* 영어 스피킹 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3">🗣️ 영어 스피킹 (주 3회)</h2>
+            <div className="flex gap-2">
+              {[1, 2, 3].map((num, i) => (
+                <CheckBox 
+                  key={i}
+                  checked={routines.english[i]} 
+                  onClick={() => toggleCheck('english', i)} 
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* AI 활용 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3">🤖 AI 활용</h2>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <CheckBox 
+                  checked={routines.aiSummary} 
+                  onClick={() => toggleCheck('aiSummary')} 
+                />
+                <span>오늘 요약</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <CheckBox 
+                  checked={routines.aiQuestion} 
+                  onClick={() => toggleCheck('aiQuestion')} 
+                />
+                <span>생각 질문 1개</span>
+              </label>
+            </div>
+          </div>
+
+          {/* 아이 집중 대화 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3">👦 아이 집중 대화</h2>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <CheckBox 
+                checked={routines.childTalk} 
+                onClick={() => toggleCheck('childTalk')} 
+              />
+              <span>완료</span>
+            </label>
+          </div>
+
+          {/* 나 탐구 */}
+          <div className="border-b pb-4">
+            <h2 className="text-lg font-semibold mb-3">🧠 나 탐구</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  이번 주 에너지 상승 순간:
+                </label>
+                <textarea
+                  value={routines.energyMoment}
+                  onChange={(e) => updateText('energyMoment', e.target.value)}
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                  rows="2"
+                  placeholder="에너지가 올라갔던 순간을 기록하세요..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">
+                  다음 주 유지할 것 1가지:
+                </label>
+                <textarea
+                  value={routines.keepNext}
+                  onChange={(e) => updateText('keepNext', e.target.value)}
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                  rows="2"
+                  placeholder="다음 주에도 계속할 것을 적어보세요..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 체중 기록 */}
+          <div>
+            <h2 className="text-lg font-semibold mb-3">📉 체중 기록</h2>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                이번 주:
+              </label>
+              <input
+                type="text"
+                value={routines.weight}
+                onChange={(e) => updateText('weight', e.target.value)}
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                placeholder="예: 70kg"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 푸터 */}
+        <div className="mt-8 text-center text-sm text-gray-500">
+          데이터는 자동으로 저장됩니다
+        </div>
+      </div>
+    </div>
+  );
+}
